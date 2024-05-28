@@ -2,10 +2,8 @@ package server
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net"
-	"strings"
 )
 
 const (
@@ -23,7 +21,7 @@ func New(config *Config) *Server {
 }
 
 func (s *Server) Start() {
-	ln, err := net.Listen("tcp", ":8080")
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", s.Config.Port))
 	if err != nil {
 		log.Panicf("Failed to start server: %+v", err)
 	}
@@ -41,23 +39,9 @@ func (s *Server) Start() {
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 
-	// Read data from connection
-	var data []byte
-	buf := make([]byte, BufferSize)
-	for {
-		n, err := conn.Read(buf)
-		if err != nil {
-			if err == io.EOF || err == net.ErrClosed {
-				break
-			}
-		}
-		data = append(data, buf[:n]...)
-		if n < int(BufferSize) {
-			break
-		}
+	req, err := ExtractRequestData(conn)
+	if err != nil {
+		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n\r\n"))
 	}
-	lines := strings.Split(string(data), "\n")
-	firstLine := lines[0]
-	path := strings.Split(firstLine, " ")[1]
-	conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\n\r\nRequested path: %s\r\n", path)))
+	conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\n\r\nRequested path: %s\r\n", req.Path)))
 }
