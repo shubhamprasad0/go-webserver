@@ -41,7 +41,10 @@ func handleConnection(conn net.Conn) {
 
 	req, err := ExtractRequestData(conn)
 	if err != nil {
-		conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n\r\n"))
+		res := NewResponse(StatusInternalServerError)
+		res.Send(conn)
 	}
-	conn.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\n\r\nRequested path: %s\r\n", req.Path)))
+	res := NewResponse(StatusOK)
+	res.SetData(fmt.Sprintf("Requested Path: %s", req.Path))
+	res.Send(conn)
 }
