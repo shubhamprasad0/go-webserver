@@ -1,9 +1,13 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 const (
@@ -32,19 +36,66 @@ func (s *Server) Start() {
 			log.Printf("Failed to handle connection: %+v", err)
 			continue
 		}
-		go handleConnection(conn)
+		go s.handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
 
 	req, err := ExtractRequestData(conn)
 	if err != nil {
 		res := NewResponse(StatusInternalServerError)
 		res.Send(conn)
+		return
+	}
+
+	path := req.Path
+	if path == "/" {
+		path = "/index.html"
+	}
+
+	requestedFile, err := s.validatePath(path)
+	if err != nil {
+		if errors.Is(err, ErrUnauthorized) {
+			res := NewResponse(StatusUnauthorized)
+			res.Send(conn)
+			return
+		} else {
+			res := NewResponse(StatusInternalServerError)
+			res.Send(conn)
+			return
+		}
+	}
+
+	data, err := os.ReadFile(requestedFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			res := NewResponse(StatusNotFound)
+			res.Send(conn)
+		} else {
+			res := NewResponse(StatusInternalServerError)
+			res.Send(conn)
+		}
+		return
 	}
 	res := NewResponse(StatusOK)
-	res.SetData(fmt.Sprintf("Requested Path: %s", req.Path))
+	res.SetHeader("Content-Type", "text/html")
+	res.SetData(string(data))
 	res.Send(conn)
+}
+
+func (s *Server) validatePath(path string) (string, error) {
+	requestedFile, err := filepath.Abs(fmt.Sprintf("%s%s", s.Config.RootPath, path))
+	if err != nil {
+		return "", err
+	}
+	rootPath, err := filepath.Abs(s.Config.RootPath)
+	if err != nil {
+		return "", err
+	}
+	if !strings.HasPrefix(requestedFile, rootPath) {
+		return "", ErrUnauthorized
+	}
+	return requestedFile, nil
 }

@@ -11,11 +11,15 @@ type StatusCode uint
 const (
 	StatusOK                  StatusCode = 200
 	StatusInternalServerError StatusCode = 500
+	StatusNotFound            StatusCode = 404
+	StatusUnauthorized        StatusCode = 401
 )
 
 var StatusToName = map[StatusCode]string{
 	StatusOK:                  "OK",
 	StatusInternalServerError: "Internal Server Error",
+	StatusNotFound:            "Not Found",
+	StatusUnauthorized:        "Unauthorized",
 }
 
 type Response struct {
@@ -31,6 +35,7 @@ func NewResponse(statusCode StatusCode) *Response {
 	return &Response{
 		StatusCode: statusCode,
 		StatusName: statusName,
+		Headers:    make(map[string]string),
 	}
 }
 

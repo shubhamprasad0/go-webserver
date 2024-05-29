@@ -5,4 +5,5 @@ import "errors"
 var (
 	ErrMalformedRequest      = errors.New("malformed request")
 	ErrInvalidHttpStatusCode = errors.New("invalid http status code")
+	ErrUnauthorized          = errors.New("unauthorized")
 )
